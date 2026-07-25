@@ -44,19 +44,15 @@ def extrair_metricas_e_titulo(url_video: str):
     print(f"\n[1/4] Extraindo stream via yt-dlp: {url_norm}")
     
     ydl_opts = {
-    'format': 'best',
-    'quiet': True,
-    'no_warnings': True,
-    'extractor_args': {
-        'youtube': {
-            'player_client': ['ios', 'android', 'mweb'], 
-        }
-    },
-    'http_headers': {
-        'User-Agent': 'com.google.android.youtube/19.09.37 (Linux; U; Android 11; US) gzip',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'format': 'best[ext=mp4]/best',
+        'quiet': True,
+        'cookiefile': 'cookies.txt', 
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'ios'],
+            }
+        },
     }
-}
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
