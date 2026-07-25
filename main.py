@@ -105,6 +105,15 @@ def extrair_metricas_e_titulo(url_video: str):
     else:
         print("⚠️ ALERTA: yt-dlp executando SEM arquivo de cookies!")
 
+    # O Render usa IPs de datacenter compartilhados, que o YouTube costuma
+    # marcar como suspeitos mesmo com cookies válidos ("Sign in to confirm
+    # you're not a bot"). Configure YTDLP_PROXY (ex: um proxy residencial)
+    # nas env vars do Render para contornar isso quando necessário.
+    proxy_url = os.environ.get("YTDLP_PROXY")
+    if proxy_url:
+        ydl_opts['proxy'] = proxy_url
+        print("🌐 yt-dlp executando através de proxy configurado (YTDLP_PROXY).")
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url_norm, download=False)
@@ -137,6 +146,10 @@ def extrair_metricas_e_titulo(url_video: str):
         print(f"❌ Erro no yt-dlp: {erro_str}")
         if "DRM" in erro_str:
             return None, None, "Este vídeo possui proteção contra cópia (DRM) e não pode ser analisado."
+        if "Sign in to confirm" in erro_str or "not a bot" in erro_str:
+            print("🤖 Bloqueio de bot detectado pelo YouTube (provável reputação do IP do servidor). "
+                  "Cookies sozinhos podem não resolver — considere configurar YTDLP_PROXY.")
+            return None, None, "O YouTube bloqueou esta requisição por suspeita de bot. Tente novamente em instantes."
         return None, None, f"Erro ao acessar vídeo: {erro_str}"
 
     print("[3/4] Abrindo stream no OpenCV...")
