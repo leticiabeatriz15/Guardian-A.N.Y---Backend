@@ -80,17 +80,17 @@ def extrair_metricas_e_titulo(url_video: str):
     print(f"\n[1/4] Extraindo stream via yt-dlp: {url_norm}")
     
     ydl_opts = {
-        'format': 'worst[ext=mp4]/worst/b', 
+        'format': 'worst[ext=mp4][has_drm=false]/worst[has_drm=false]/b', 
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'android', 'mweb', 'web']
+                'player_client': ['tv_embedded', 'mweb', 'web_creator', 'web']
             }
         },
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
         }
     }
@@ -107,31 +107,34 @@ def extrair_metricas_e_titulo(url_video: str):
             
         if not info:
             print("❌ Falha: Nenhuma informação extraída do vídeo.")
-            return None, None
+            return None, None, "Não foi possível extrair informações do vídeo."
 
         stream_url = info.get("url")
         
         if not stream_url and "formats" in info:
             for f in info["formats"]:
-                if f.get("url") and f.get("vcodec") != "none":
+                if f.get("url") and f.get("vcodec") != "none" and not f.get("has_drm"):
                     stream_url = f["url"]
                     break
 
         if not stream_url:
-            print("❌ Falha: Nenhuma URL de stream jogável encontrada.")
-            return None, None
+            print("❌ Falha: Nenhuma URL de stream sem DRM encontrada.")
+            return None, None, "Este vídeo é protegido por direitos autorais (DRM) e não permite transmissão direta."
             
         titulo = info.get("title", "Vídeo do YouTube")
         print(f"[2/4] Stream obtida com sucesso: {titulo}")
     except Exception as e:
-        print(f"❌ Erro no yt-dlp: {e}")
-        return None, None
+        erro_str = str(e)
+        print(f"❌ Erro no yt-dlp: {erro_str}")
+        if "DRM" in erro_str:
+            return None, None, "Este vídeo possui proteção contra cópia (DRM) e não pode ser analisado."
+        return None, None, f"Erro ao acessar vídeo: {erro_str}"
 
     print("[3/4] Abrindo stream no OpenCV...")
     cap = cv2.VideoCapture(stream_url)
     if not cap.isOpened():
         print("❌ Erro ao abrir a stream de vídeo no OpenCV.")
-        return None, None
+        return None, None, "Erro ao abrir o fluxo de vídeo no OpenCV."
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps <= 0 or np.isnan(fps):
@@ -206,7 +209,7 @@ def extrair_metricas_e_titulo(url_video: str):
 
     if hist_count == 0:
         print("❌ Nenhum frame foi processado com sucesso.")
-        return None, None
+        return None, None, "Falha no processamento dos quadros do vídeo."
 
     metricas = {
         "Similaridade": sum(valores_similaridade) / len(valores_similaridade) if valores_similaridade else 0,
@@ -215,7 +218,7 @@ def extrair_metricas_e_titulo(url_video: str):
     }
 
     print("✨ Extração de métricas concluída!")
-    return metricas, titulo
+    return metricas, titulo, None
 
 
 @app.post("/analisar")
@@ -223,10 +226,13 @@ def analisar_video(dados: AnaliseRequest):
     if not modelo:
         raise HTTPException(status_code=500, detail="Modelo de IA não carregado no servidor.")
 
-    metricas, titulo = extrair_metricas_e_titulo(dados.url)
+    metricas, titulo, erro_msg = extrair_metricas_e_titulo(dados.url)
 
-    if not metricas:
-        raise HTTPException(status_code=400, detail="Não foi possível processar o vídeo. Verifique a URL.")
+    if erro_msg or not metricas:
+        raise HTTPException(
+            status_code=400, 
+            detail=erro_msg or "Não foi possível processar o vídeo. Verifique a URL."
+        )
 
     X_input = pd.DataFrame([{
         'Similaridade': metricas['Similaridade'],
