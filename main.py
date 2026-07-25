@@ -19,7 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-COOKIE_PATH = "cookies.txt"
+POSSIVEIS_CAMINHOS_COOKIES = [
+    "cookies.txt",
+    "/opt/render/project/src/cookies.txt",
+    os.path.join(os.getcwd(), "cookies.txt")
+]
+
+COOKIE_PATH = None
 
 if os.environ.get("YOUTUBE_COOKIES"):
     raw_cookies = os.environ["YOUTUBE_COOKIES"].replace('\\n', '\n')
@@ -32,15 +38,20 @@ if os.environ.get("YOUTUBE_COOKIES"):
             line_list.append(fixed_line)
             
     fixed_cookie_content = "\n".join(line_list)
+    COOKIE_PATH = "cookies.txt"
     with open(COOKIE_PATH, "w", encoding="utf-8") as f:
         f.write(fixed_cookie_content)
-    print(f"🍪 [Environment Variable] Cookies carregados! Tamanho: {len(fixed_cookie_content)} bytes")
+    print(f"🍪 [Env Var] Cookies injetados e salvos com sucesso! ({len(fixed_cookie_content)} bytes)")
 
-elif os.path.exists(COOKIE_PATH) and os.path.getsize(COOKIE_PATH) > 0:
-    print(f"🍪 [Secret File / Local] Arquivo cookies.txt encontrado! Tamanho: {os.path.getsize(COOKIE_PATH)} bytes")
+if not COOKIE_PATH:
+    for caminho in POSSIVEIS_CAMINHOS_COOKIES:
+        if os.path.exists(caminho) and os.path.getsize(caminho) > 0:
+            COOKIE_PATH = caminho
+            print(f"🍪 [Secret File / File System] Encontrado cookie em: {caminho} ({os.path.getsize(caminho)} bytes)")
+            break
 
-else:
-    print("⚠️ CRÍTICO: Nenhum cookie do YouTube foi detectado no servidor!")
+if not COOKIE_PATH:
+    print("⚠️ CRÍTICO: Nenhum arquivo de cookies do YouTube foi encontrado no servidor!")
 
 
 CAMINHO_MODELO = 'modelo_classificador_video.pkl'
@@ -75,7 +86,7 @@ def extrair_metricas_e_titulo(url_video: str):
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['ios', 'tvhtml5', 'mweb', 'web']
+                'player_client': ['ios', 'android', 'mweb', 'web']
             }
         },
         'http_headers': {
@@ -84,11 +95,11 @@ def extrair_metricas_e_titulo(url_video: str):
         }
     }
 
-    if os.path.exists(COOKIE_PATH) and os.path.getsize(COOKIE_PATH) > 0:
+    if COOKIE_PATH and os.path.exists(COOKIE_PATH):
         ydl_opts['cookiefile'] = COOKIE_PATH
-        print(f"👉 yt-dlp utilizando arquivo de cookie: {COOKIE_PATH}")
+        print(f"👉 yt-dlp executando COM cookiefile: {COOKIE_PATH}")
     else:
-        print("⚠️ ALERTA: Executando yt-dlp SEM arquivo de cookies!")
+        print("⚠️ ALERTA: yt-dlp executando SEM arquivo de cookies!")
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
