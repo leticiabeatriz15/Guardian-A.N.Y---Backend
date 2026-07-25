@@ -80,13 +80,17 @@ def extrair_metricas_e_titulo(url_video: str):
     print(f"\n[1/4] Extraindo stream via yt-dlp: {url_norm}")
     
     ydl_opts = {
-        'format': 'worst[ext=mp4][has_drm=false]/worst[has_drm=false]/b', 
+        # 'b' sozinho já é bem permissivo, mas deixamos os filtros como preferência
+        # e caímos para QUALQUER formato (mesmo só-áudio) antes de desistir.
+        'format': 'worst[ext=mp4][has_drm=false]/worst[has_drm=false]/b/best',
         'quiet': True,
         'no_warnings': True,
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['tv_embedded', 'mweb', 'web_creator', 'web']
+                # android/ios costumam devolver formatos progressivos sem exigir
+                # PO token com a mesma frequência que web/mweb em 2026.
+                'player_client': ['android', 'ios', 'tv_embedded', 'mweb', 'web_creator', 'web']
             }
         },
         'http_headers': {
@@ -110,7 +114,7 @@ def extrair_metricas_e_titulo(url_video: str):
             return None, None, "Não foi possível extrair informações do vídeo."
 
         stream_url = info.get("url")
-        
+
         if not stream_url and "formats" in info:
             for f in info["formats"]:
                 if f.get("url") and f.get("vcodec") != "none" and not f.get("has_drm"):
@@ -118,7 +122,12 @@ def extrair_metricas_e_titulo(url_video: str):
                     break
 
         if not stream_url:
-            print("❌ Falha: Nenhuma URL de stream sem DRM encontrada.")
+            formatos = info.get("formats", [])
+            print(f"❌ Falha: Nenhuma URL de stream sem DRM encontrada. "
+                  f"Total de formatos retornados pelo yt-dlp: {len(formatos)}")
+            for f in formatos[:10]:
+                print(f"   • id={f.get('format_id')} ext={f.get('ext')} "
+                      f"vcodec={f.get('vcodec')} has_drm={f.get('has_drm')} url_ok={bool(f.get('url'))}")
             return None, None, "Este vídeo é protegido por direitos autorais (DRM) e não permite transmissão direta."
             
         titulo = info.get("title", "Vídeo do YouTube")
