@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 app = FastAPI(title="Guardian A.N.Y API")
 
-# Libera CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,7 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Carrega o modelo
 CAMINHO_MODELO = 'modelo_classificador_video.pkl'
 if os.path.exists(CAMINHO_MODELO):
     modelo = joblib.load(CAMINHO_MODELO)
@@ -48,13 +46,15 @@ def extrair_metricas_e_titulo(url_video: str):
     ydl_opts = {
         'ignoreerrors': True,
         'quiet': True,
-        'format': 'worst[ext=mp4]/best[height<=360][ext=mp4]/worst',
+        'format': 'worst[ext=mp4]/best[height<=360][ext=mp4]/worst/best',
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web']
+                'player_client': ['ios', 'android', 'tv', 'mweb'],
+                'player_skip': ['webpage', 'configs'],
             }
         },
         'geo_bypass': True,
+        'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
     }
 
     try:
@@ -84,7 +84,6 @@ def extrair_metricas_e_titulo(url_video: str):
     intervalo_segundos = 0.5
     frame_intervalo = max(1, int(fps * intervalo_segundos))
     
-    # Pula os primeiros 5 segundos
     frame_inicial = int(fps * 5)
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_inicial)
 
@@ -114,7 +113,6 @@ def extrair_metricas_e_titulo(url_video: str):
             frame_rgb = cv2.cvtColor(frame_pequeno, cv2.COLOR_BGR2RGB)
             frame_gray = cv2.cvtColor(frame_pequeno, cv2.COLOR_BGR2GRAY)
 
-            # Agitação / Movimento Físico
             if frame_anterior_gray is not None:
                 diff = cv2.absdiff(frame_anterior_gray, frame_gray)
                 _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
@@ -125,13 +123,11 @@ def extrair_metricas_e_titulo(url_video: str):
 
             frame_anterior_gray = frame_gray.copy()
 
-            # Contraste Cromático (LAB)
             frame_lab = cv2.cvtColor(frame_pequeno, cv2.COLOR_BGR2Lab)
             _, a_channel, b_channel = cv2.split(frame_lab)
             contraste_frame = np.sqrt(np.std(a_channel)**2 + np.std(b_channel)**2)
             valores_contrastes.append(contraste_frame)
 
-            # Similaridade Visual
             hists_atuais = {}
             correlacoes = []
             for i, cor in enumerate(["red", "green", "blue"]):
@@ -176,7 +172,6 @@ def analisar_video(dados: AnaliseRequest):
     if not metricas:
         raise HTTPException(status_code=400, detail="Não foi possível processar o vídeo. Verifique a URL.")
 
-    # Garante que as colunas combinam exatamente com as do treino
     X_input = pd.DataFrame([{
         'Similaridade': metricas['Similaridade'],
         'Contraste': metricas['Contraste'],
