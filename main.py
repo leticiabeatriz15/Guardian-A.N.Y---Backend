@@ -18,6 +18,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+COOKIE_PATH = "cookies.txt"
+
+if os.environ.get("YOUTUBE_COOKIES"):
+    with open(COOKIE_PATH, "w", encoding="utf-8") as f:
+        f.write(os.environ["YOUTUBE_COOKIES"])
+    print("🍪 Cookies do YouTube carregados a partir da variável de ambiente!")
+elif os.path.exists(COOKIE_PATH):
+    print("🍪 Arquivo cookies.txt local encontrado.")
+else:
+    print("⚠️ Aviso: Nenhum cookie do YouTube foi detectado.")
+
 CAMINHO_MODELO = 'modelo_classificador_video.pkl'
 if os.path.exists(CAMINHO_MODELO):
     modelo = joblib.load(CAMINHO_MODELO)
@@ -45,7 +56,7 @@ def extrair_metricas_e_titulo(url_video: str):
     
     ydl_opts = {
         'format': 'worst[ext=mp4]/worst/b', 
-        'cookiefile': 'cookies.txt',
+        'cookiefile': COOKIE_PATH if os.path.exists(COOKIE_PATH) else None,
         'quiet': True,
         'no_warnings': True,        
         'extractor_args': {
