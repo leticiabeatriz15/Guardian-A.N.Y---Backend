@@ -1,5 +1,7 @@
 import os
 import re
+import tempfile
+import requests
 import cv2
 import yt_dlp
 import numpy as np
@@ -152,10 +154,35 @@ def extrair_metricas_e_titulo(url_video: str):
             return None, None, "O YouTube bloqueou esta requisição por suspeita de bot. Tente novamente em instantes."
         return None, None, f"Erro ao acessar vídeo: {erro_str}"
 
-    print("[3/4] Abrindo stream no OpenCV...")
-    cap = cv2.VideoCapture(stream_url)
+    print("[3/4] Baixando stream para arquivo temporário...")
+    # O backend FFmpeg do OpenCV não usa o proxy configurado no yt-dlp, então
+    # abrir a URL direto (cv2.VideoCapture(stream_url)) sai pelo IP "sujo" do
+    # Render e falha. Por isso baixamos os bytes aqui, passando pelo mesmo
+    # proxy, e entregamos um arquivo local pro OpenCV.
+    caminho_temp = None
+    try:
+        req_proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+        headers = ydl_opts['http_headers']
+        with requests.get(stream_url, proxies=req_proxies, headers=headers,
+                           stream=True, timeout=60) as resp:
+            resp.raise_for_status()
+            with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+                caminho_temp = tmp.name
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    tmp.write(chunk)
+        print(f"[3/4] Download concluído: {os.path.getsize(caminho_temp)} bytes.")
+    except Exception as e:
+        print(f"❌ Erro ao baixar a stream: {e}")
+        if caminho_temp and os.path.exists(caminho_temp):
+            os.remove(caminho_temp)
+        return None, None, "Erro ao baixar o fluxo de vídeo."
+
+    print("[3/4] Abrindo arquivo no OpenCV...")
+    cap = cv2.VideoCapture(caminho_temp)
     if not cap.isOpened():
         print("❌ Erro ao abrir a stream de vídeo no OpenCV.")
+        cap.release()
+        os.remove(caminho_temp)
         return None, None, "Erro ao abrir o fluxo de vídeo no OpenCV."
 
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -228,6 +255,7 @@ def extrair_metricas_e_titulo(url_video: str):
         frame_atual_idx += 1
 
     cap.release()
+    os.remove(caminho_temp)
 
     if hist_count == 0:
         print("❌ Nenhum frame foi processado com sucesso.")
