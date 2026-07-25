@@ -1,4 +1,5 @@
 import os
+import re
 import cv2
 import yt_dlp
 import numpy as np
@@ -21,13 +22,27 @@ app.add_middleware(
 COOKIE_PATH = "cookies.txt"
 
 if os.environ.get("YOUTUBE_COOKIES"):
+    raw_cookies = os.environ["YOUTUBE_COOKIES"].replace('\\n', '\n')
+    
+    line_list = []
+    for line in raw_cookies.splitlines():
+        if line.strip().startswith("#") or not line.strip():
+            line_list.append(line)
+        else:
+            fixed_line = re.sub(r'[\t ]{2,}', '\t', line.strip())
+            line_list.append(fixed_line)
+            
+    fixed_cookie_content = "\n".join(line_list)
+    
     with open(COOKIE_PATH, "w", encoding="utf-8") as f:
-        f.write(os.environ["YOUTUBE_COOKIES"])
-    print("🍪 Cookies do YouTube carregados a partir da variável de ambiente!")
+        f.write(fixed_cookie_content)
+    print("🍪 Cookies do YouTube formatados e regravados com sucesso via YOUTUBE_COOKIES!")
+
 elif os.path.exists(COOKIE_PATH):
-    print("🍪 Arquivo cookies.txt local encontrado.")
+    print("🍪 Usando arquivo cookies.txt local existente.")
 else:
-    print("⚠️ Aviso: Nenhum cookie do YouTube foi detectado.")
+    print("⚠️ Aviso: Nenhum cookie do YouTube configurado.")
+
 
 CAMINHO_MODELO = 'modelo_classificador_video.pkl'
 if os.path.exists(CAMINHO_MODELO):
@@ -56,12 +71,12 @@ def extrair_metricas_e_titulo(url_video: str):
     
     ydl_opts = {
         'format': 'worst[ext=mp4]/worst/b', 
-        'cookiefile': COOKIE_PATH if os.path.exists(COOKIE_PATH) else None,
         'quiet': True,
-        'no_warnings': True,        
+        'no_warnings': True,
+        'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['web', 'tv_embedded']
+                'player_client': ['web', 'tv_embedded', 'mweb']
             }
         },
         'http_headers': {
@@ -69,6 +84,9 @@ def extrair_metricas_e_titulo(url_video: str):
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
         }
     }
+
+    if os.path.exists(COOKIE_PATH) and os.path.getsize(COOKIE_PATH) > 0:
+        ydl_opts['cookiefile'] = COOKIE_PATH
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -185,6 +203,7 @@ def extrair_metricas_e_titulo(url_video: str):
 
     print("✨ Extração de métricas concluída!")
     return metricas, titulo
+
 
 @app.post("/analisar")
 def analisar_video(dados: AnaliseRequest):
