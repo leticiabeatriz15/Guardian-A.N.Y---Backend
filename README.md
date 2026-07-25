@@ -1,6 +1,6 @@
 # 🧩 Guardian A.N.Y — Backend API
 
-> **Guardian A.N.Y.** (*Autista No YouTube*) é uma ferramenta desenvolvida para analisar vídeos do YouTube e classificar seu nível de estimulação sensorial (auditiva/visual) usando inteligência artificial, ajudando a identificar conteúdos adequados ou hiperestimulantes para pessoas no espectro autista (TEA).
+> **Guardian A.N.Y.** (*Autista No YouTube*) é uma ferramenta desenvolvida para analisar vídeos do YouTube e classificar seu nível de estimulação sensorial (visual) usando inteligência artificial, ajudando a identificar conteúdos adequados ou hiperestimulantes para pessoas no espectro autista (TEA).
 
 ---
 
