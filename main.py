@@ -23,7 +23,6 @@ COOKIE_PATH = "cookies.txt"
 
 if os.environ.get("YOUTUBE_COOKIES"):
     raw_cookies = os.environ["YOUTUBE_COOKIES"].replace('\\n', '\n')
-    
     line_list = []
     for line in raw_cookies.splitlines():
         if line.strip().startswith("#") or not line.strip():
@@ -33,15 +32,15 @@ if os.environ.get("YOUTUBE_COOKIES"):
             line_list.append(fixed_line)
             
     fixed_cookie_content = "\n".join(line_list)
-    
     with open(COOKIE_PATH, "w", encoding="utf-8") as f:
         f.write(fixed_cookie_content)
-    print(f"🍪 [Render] Cookies regravados a partir da variável de ambiente! Tamanho: {len(fixed_cookie_content)} bytes")
+    print(f"🍪 [Environment Variable] Cookies carregados! Tamanho: {len(fixed_cookie_content)} bytes")
 
-elif os.path.exists(COOKIE_PATH):
-    print(f"🍪 [Local] Usando arquivo cookies.txt local. Tamanho: {os.path.getsize(COOKIE_PATH)} bytes")
+elif os.path.exists(COOKIE_PATH) and os.path.getsize(COOKIE_PATH) > 0:
+    print(f"🍪 [Secret File / Local] Arquivo cookies.txt encontrado! Tamanho: {os.path.getsize(COOKIE_PATH)} bytes")
+
 else:
-    print("⚠️ Aviso: Nenhum cookie do YouTube configurado.")
+    print("⚠️ CRÍTICO: Nenhum cookie do YouTube foi detectado no servidor!")
 
 
 CAMINHO_MODELO = 'modelo_classificador_video.pkl'
@@ -87,6 +86,9 @@ def extrair_metricas_e_titulo(url_video: str):
 
     if os.path.exists(COOKIE_PATH) and os.path.getsize(COOKIE_PATH) > 0:
         ydl_opts['cookiefile'] = COOKIE_PATH
+        print(f"👉 yt-dlp utilizando arquivo de cookie: {COOKIE_PATH}")
+    else:
+        print("⚠️ ALERTA: Executando yt-dlp SEM arquivo de cookies!")
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
