@@ -36,10 +36,10 @@ if os.environ.get("YOUTUBE_COOKIES"):
     
     with open(COOKIE_PATH, "w", encoding="utf-8") as f:
         f.write(fixed_cookie_content)
-    print("🍪 Cookies do YouTube formatados e regravados com sucesso via YOUTUBE_COOKIES!")
+    print(f"🍪 [Render] Cookies regravados a partir da variável de ambiente! Tamanho: {len(fixed_cookie_content)} bytes")
 
 elif os.path.exists(COOKIE_PATH):
-    print("🍪 Usando arquivo cookies.txt local existente.")
+    print(f"🍪 [Local] Usando arquivo cookies.txt local. Tamanho: {os.path.getsize(COOKIE_PATH)} bytes")
 else:
     print("⚠️ Aviso: Nenhum cookie do YouTube configurado.")
 
@@ -76,11 +76,11 @@ def extrair_metricas_e_titulo(url_video: str):
         'nocheckcertificate': True,
         'extractor_args': {
             'youtube': {
-                'player_client': ['web', 'tv_embedded', 'mweb']
+                'player_client': ['ios', 'tvhtml5', 'mweb', 'web']
             }
         },
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
         }
     }
