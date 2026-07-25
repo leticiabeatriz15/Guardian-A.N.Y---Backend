@@ -44,8 +44,7 @@ def extrair_metricas_e_titulo(url_video: str):
     print(f"\n[1/4] Extraindo stream via yt-dlp: {url_norm}")
     
     ydl_opts = {
-        # Pega formatos de vídeo direto (MP4), priorizando 360p/480p para o OpenCV processar rápido sem ffmpeg
-        'format': 'best[ext=mp4]/bestvideo[height<=480][ext=mp4]/b',        
+        'format': 'worst[ext=mp4]/worst/b', 
         'cookiefile': 'cookies.txt',
         'quiet': True,
         'no_warnings': True,        
@@ -63,11 +62,23 @@ def extrair_metricas_e_titulo(url_video: str):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url_norm, download=False)
-        if not info or "url" not in info:
-            print("❌ Falha: Nenhuma URL de stream encontrada pelo yt-dlp.")
+            
+        if not info:
+            print("❌ Falha: Nenhuma informação extraída do vídeo.")
+            return None, None
+
+        stream_url = info.get("url")
+        
+        if not stream_url and "formats" in info:
+            for f in info["formats"]:
+                if f.get("url") and f.get("vcodec") != "none":
+                    stream_url = f["url"]
+                    break
+
+        if not stream_url:
+            print("❌ Falha: Nenhuma URL de stream jogável encontrada.")
             return None, None
             
-        stream_url = info["url"]
         titulo = info.get("title", "Vídeo do YouTube")
         print(f"[2/4] Stream obtida com sucesso: {titulo}")
     except Exception as e:
@@ -163,7 +174,6 @@ def extrair_metricas_e_titulo(url_video: str):
 
     print("✨ Extração de métricas concluída!")
     return metricas, titulo
-
 
 @app.post("/analisar")
 def analisar_video(dados: AnaliseRequest):
